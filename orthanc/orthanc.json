@@ -1,0 +1,34 @@
+{
+  "Name": "Imaging Sandbox (public, read-only)",
+
+  // Orthanc is never reachable directly from the internet: the public path is
+  // the read-only-guarded /dicom-web/ location in proxy/default.conf, and the
+  // admin port is published on 127.0.0.1 only (SSH tunnel). So HTTP auth is off
+  // and access control lives at the edge. Do NOT publish 8042 on 0.0.0.0.
+  "RemoteAccessAllowed": true,
+  "AuthenticationEnabled": false,
+
+  // Ingest is DICOMweb STOW from the admin tunnel only — no classic DIMSE port.
+  "DicomServerEnabled": false,
+
+  "PostgreSQL": {
+    "EnableIndex": true,
+    "EnableStorage": false,
+    "Host": "postgres",
+    "Port": 5432,
+    "Database": "orthanc",
+    "Username": "orthanc"
+    // Password is injected via ORTHANC__POSTGRESQL__PASSWORD (see .env)
+  },
+
+  "DicomWeb": {
+    "Enable": true,
+    "Root": "/dicom-web/",
+    "EnableWado": true,
+    "WadoRoot": "/wado"
+  },
+
+  "StableAge": 60,
+  "StorageCompression": true,
+  "OverwriteInstances": true
+}

@@ -1,0 +1,20 @@
+# Wires the internal proxy into the existing Nginx Proxy Manager on this VPS.
+#
+# Deploy with both files:
+#   docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d
+#
+# Then in NPM → Add Proxy Host:
+#   Domain:               imaging.yourdomain
+#   Forward Hostname/IP:  imaging-proxy      Port: 80
+#   Websockets Support:   ON      Block Common Exploits: ON
+#   SSL:                  request Let's Encrypt cert, Force SSL + HSTS
+#
+# (Local dev without NPM: just use `docker compose up -d` — the base file alone.)
+services:
+  proxy:
+    networks: [edge, npm]
+
+networks:
+  npm:
+    external: true
+    name: nginx-proxy-manager_default

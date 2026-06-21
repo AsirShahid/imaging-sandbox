@@ -1,0 +1,13 @@
+.env
+backups/
+data/
+sample-data/
+*.dcm
+seg.dcm
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/

@@ -1,0 +1,104 @@
+name: imaging-sandbox
+
+# Edge TLS + the public domain are handled by the EXISTING Nginx Proxy Manager
+# on this VPS (network: nginx-proxy-manager_default), not by this stack.
+# For NPM wiring, deploy with the extra file:
+#   docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d
+#
+# mem_limit values are co-tenant protection (the VPS also runs Immich, Nextcloud,
+# Paperless, etc.) — they cap this public-facing stack so it can't starve them.
+# The box has 23 GiB RAM, so raise them if you want heavier on-box work.
+
+services:
+  # Internal app router (NOT a public proxy / no TLS). Gives OHIF, Orthanc's
+  # DICOMweb and the FastAPI service a single same-origin (no CORS) and enforces
+  # the public read-only guard on DICOMweb.
+  proxy:
+    image: nginx:1.27-alpine
+    container_name: imaging-proxy
+    restart: unless-stopped
+    volumes:
+      - ./proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:8088:80"   # loopback only (8080 is taken on this host); for SSH-tunnel testing
+    depends_on: [ohif, orthanc, api]
+    networks: [edge]
+
+  ohif:
+    image: ohif/app:latest          # pin a tag/digest before production
+    restart: unless-stopped
+    volumes:
+      - ./ohif/app-config.js:/usr/share/nginx/html/app-config.js:ro
+    networks: [edge]
+
+  orthanc:
+    image: orthancteam/orthanc:latest   # pin a tag/digest before production
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Secret comes from .env; the rest of the config is in orthanc/orthanc.json
+      ORTHANC__POSTGRESQL__PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./orthanc/orthanc.json:/etc/orthanc/orthanc.json:ro
+      - orthanc_storage:/var/lib/orthanc/db
+    ports:
+      - "127.0.0.1:8042:8042"   # ADMIN ingest via SSH tunnel ONLY — never public
+    mem_limit: 1g
+    networks: [edge, backend]
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: orthanc
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: orthanc
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orthanc"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+    networks: [backend]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--maxmemory", "192mb", "--maxmemory-policy", "allkeys-lru"]
+    mem_limit: 256m
+    networks: [backend]
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    environment:
+      ORTHANC_URL: http://orthanc:8042
+      REDIS_URL: redis://redis:6379/0
+    depends_on: [redis, orthanc]
+    mem_limit: 512m
+    networks: [edge, backend]
+
+  # CPU-bound jobs (reconstruction, volume metrics) run here, never inline in a
+  # request. 2g cap leaves room for real recon work without threatening co-tenants.
+  worker:
+    build: ./api
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]
+    environment:
+      ORTHANC_URL: http://orthanc:8042
+      REDIS_URL: redis://redis:6379/0
+    depends_on: [redis]
+    mem_limit: 2g
+    networks: [backend]
+
+volumes:
+  orthanc_storage:
+  pg_data:
+
+networks:
+  edge:      # proxy <-> app services
+  backend:   # app services <-> data services (no path to the proxy)
