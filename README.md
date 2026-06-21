@@ -51,7 +51,10 @@ docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d
 
 ## Security model (short version)
 
-- Public traffic is **read-only**: the proxy rejects every DICOMweb write verb.
+- DICOMweb is **read-only**: the proxy rejects every DICOMweb write verb.
+- The `/api/` compute endpoints are unauthenticated but **rate-limited** at the
+  proxy, and recon jobs are capped by queue depth — so the public surface can't
+  exhaust the worker or starve co-tenants.
 - Orthanc's admin port is bound to `127.0.0.1` — admin/ingest only via SSH tunnel.
 - Orthanc REST/Explorer is never proxied publicly; only `/dicom-web/` (reads) is.
 - Full rationale, the ARM/co-tenant notes, and resource budget: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
