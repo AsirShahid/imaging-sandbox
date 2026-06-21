@@ -25,7 +25,7 @@ services:
     networks: [edge]
 
   ohif:
-    image: ohif/app:latest          # pin a tag/digest before production
+    image: ohif/app:v3.12.5         # pinned stable release (arm64-verified)
     restart: unless-stopped
     volumes:
       - ./ohif/app-config.js:/usr/share/nginx/html/app-config.js:ro
