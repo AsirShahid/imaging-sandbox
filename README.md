@@ -34,11 +34,16 @@ docker compose up -d --build
 - API docs: http://localhost:8088/api/docs
 - Orthanc admin UI (loopback only): http://localhost:8042
 
-Load some curated public DICOM:
+Load the curated public demo set (TCIA, CC BY 3.0 — full scrollable CT/MR series):
 
 ```bash
+./scripts/load_tcia.sh                      # downloads + loads into Orthanc
+./scripts/seed_demo_data.py | docker compose exec -T api python -   # small pydicom extras
+# or load your own curated files:
 ./scripts/load_sample_data.sh /path/to/dicom_dir
 ```
+
+Datasets and attribution: [`docs/DATASETS.md`](docs/DATASETS.md).
 
 ## Deploy behind Nginx Proxy Manager
 
