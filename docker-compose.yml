@@ -48,6 +48,7 @@ services:
       ORTHANC__POSTGRESQL__PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./orthanc/orthanc.json:/etc/orthanc/orthanc.json:ro
+      - ./orthanc/private_guard.py:/scripts/private_guard.py:ro
       - orthanc_storage:/var/lib/orthanc/db
     ports:
       - "127.0.0.1:8042:8042"   # ADMIN ingest via SSH tunnel ONLY — never public

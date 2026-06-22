@@ -30,5 +30,12 @@
 
   "StableAge": 60,
   "StorageCompression": true,
-  "OverwriteInstances": true
+  "OverwriteInstances": true,
+
+  // Private-data guard. Studies labelled `private` (e.g. ADNI, loaded via
+  // scripts/load_adni.sh) are never listed or served on the public DICOMweb
+  // edge, even though they live in this same Orthanc. Admin-tunnel access
+  // (127.0.0.1:8042) is unaffected. See orthanc/private_guard.py. Defining
+  // PythonScript also enables the bundled Python plugin.
+  "PythonScript": "/scripts/private_guard.py"
 }

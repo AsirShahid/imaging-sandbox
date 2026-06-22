@@ -34,3 +34,34 @@ collection's TCIA page):
 
 Each collection is CC BY 3.0; attribution above satisfies the license. Swap in
 other public collections by editing the `SERIES` list in `scripts/load_tcia.sh`.
+
+## ADNI (local / admin-only — NOT on the public instance)
+
+[ADNI](https://adni.loni.usc.edu/) (Alzheimer's Disease Neuroimaging Initiative)
+brain MRI/PET is excellent test data for the flow / recon / de-id tools, but it
+is **not redistributable**: access requires an approved application and a signed
+**Data Use Agreement**, and that DUA forbids sharing the data with anyone who
+hasn't signed it. So ADNI is treated differently from the TCIA demo set:
+
+- **Never on the public edge.** It must not appear on `imaging.asir.dev`. There
+  is also no anonymous download API (unlike TCIA's NBIA), so there is no
+  auto-downloader — you download studies from LONI/IDA yourself.
+- **Loaded local/admin-only and labelled `private`.** Ingest with
+  [`scripts/load_adni.sh`](../scripts/load_adni.sh), which talks to the loopback
+  admin port only (refuses any non-loopback target) and tags every loaded study
+  with the `private` label.
+- **Kept off the public DICOMweb by the guard**, even though it lives in the same
+  Orthanc: `private`-labelled studies are never listed or served on the public
+  read path. See the private-data guard in [ARCHITECTURE.md](ARCHITECTURE.md)
+  (`orthanc/private_guard.py` + `proxy/default.conf`).
+
+```bash
+# After requesting access + signing the DUA and downloading from LONI/IDA:
+./scripts/load_adni.sh /path/to/ADNI_export_dir     # over the admin SSH tunnel
+```
+
+Access & citation — **ADNI / LONI IDA**: request access at
+<https://adni.loni.usc.edu/> and cite per ADNI's *Data Use Agreement* and
+publication policy (including the ADNI acknowledgement and funding text shown on
+the ADNI site). Data collection/sharing for ADNI is funded by NIH grant
+U01 AG024904 and DOD ADNI (W81XWH-12-2-0012).

@@ -43,6 +43,14 @@ Load the curated public demo set (TCIA, CC BY 3.0 — full scrollable CT/MR seri
 ./scripts/load_sample_data.sh /path/to/dicom_dir
 ```
 
+**Local/admin-only data (e.g. ADNI).** Non-redistributable data can live on the
+box for your own experiments without ever reaching the public edge:
+`./scripts/load_adni.sh /path/to/ADNI_export_dir` ingests over the admin tunnel
+and labels each study `private`; the guard then keeps `private` studies off the
+public DICOMweb. ADNI's DUA forbids redistribution — never put it on the public
+instance. See [`docs/DATASETS.md`](docs/DATASETS.md) and the private-data guard
+in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 Datasets and attribution: [`docs/DATASETS.md`](docs/DATASETS.md).
 
 ## Phase-contrast CSF/blood-flow quantification

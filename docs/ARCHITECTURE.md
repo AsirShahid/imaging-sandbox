@@ -46,6 +46,19 @@ is GUI state that's easy to lose. Keeping it in-repo is the deliberate choice.
 - **Orthanc is never directly public.** Only `/dicom-web/` (reads) is proxied;
   the REST API and Explorer UI are not. The admin port is published on
   `127.0.0.1:8042` → admin/ingest only via SSH tunnel.
+- **Private-data guard.** Data that may live on the box but must never be served
+  publicly (e.g. **ADNI** — redistribution is forbidden by its DUA) is labelled
+  `private` at ingest and kept off the public DICOMweb *even though it shares one
+  Orthanc*. The proxy stamps public-edge requests with `X-Public-Access: 1`
+  (force-set, unspoofable; admin ingest bypasses the proxy so it never carries
+  it), and the Orthanc Python plugin `orthanc/private_guard.py` then, for public
+  requests only: denies (403) any study-scoped read — WADO-RS pixels/bulk,
+  `/metadata`, per-study series/instances QIDO — of a `private` study, and serves
+  a *filtered* study list (native QIDO minus `private` studies) so they never
+  appear in the public browser. Cross-study QIDO listings (`/dicom-web/series`,
+  `/dicom-web/instances`), which the viewer never needs, are closed at the proxy.
+  This is a **denylist**: label private data `private` (`scripts/load_adni.sh`
+  does this automatically); unlabelled studies stay public.
 - **No DIMSE.** `DicomServerEnabled: false` — no classic C-STORE port to expose.
 - **PHI containment.** No public upload path means the box can't accumulate PHI.
   `/api/deid/check` is a teaching/QA tool over curated data; it also flags
