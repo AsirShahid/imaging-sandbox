@@ -21,7 +21,13 @@ services:
       - ./proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "127.0.0.1:8088:80"   # loopback only (8080 is taken on this host); for SSH-tunnel testing
-    depends_on: [ohif, orthanc, api]
+    depends_on:
+      ohif:
+        condition: service_started
+      orthanc:
+        condition: service_started
+      api:
+        condition: service_healthy
     networks: [edge]
 
   ohif:
@@ -32,7 +38,7 @@ services:
     networks: [edge]
 
   orthanc:
-    image: orthancteam/orthanc:latest   # pin a tag/digest before production
+    image: orthancteam/orthanc:26.6.0   # pinned (arm64-verified); bundles PostgreSQL + DICOMweb plugins
     restart: unless-stopped
     depends_on:
       postgres:
@@ -69,6 +75,11 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     command: ["redis-server", "--save", "", "--maxmemory", "192mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     mem_limit: 256m
     networks: [backend]
 
@@ -78,7 +89,18 @@ services:
     environment:
       ORTHANC_URL: http://orthanc:8042
       REDIS_URL: redis://redis:6379/0
-    depends_on: [redis, orthanc]
+    # python is the app runtime, so use it as the probe (the slim image has no curl).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      redis:
+        condition: service_healthy
+      orthanc:
+        condition: service_started   # endpoints reach Orthanc lazily per-request
     mem_limit: 512m
     networks: [edge, backend]
 
@@ -91,7 +113,9 @@ services:
     environment:
       ORTHANC_URL: http://orthanc:8042
       REDIS_URL: redis://redis:6379/0
-    depends_on: [redis]
+    depends_on:
+      redis:
+        condition: service_healthy
     mem_limit: 2g
     networks: [backend]
 

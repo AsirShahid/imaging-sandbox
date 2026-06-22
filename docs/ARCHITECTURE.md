@@ -38,6 +38,11 @@ is GUI state that's easy to lose. Keeping it in-repo is the deliberate choice.
 
 - **Public = read-only.** `proxy` rejects every write verb (`POST/PUT/DELETE/PATCH`)
   on `/dicom-web/`. Visitors view; they cannot STOW.
+- **Compute API is throttled.** The `/api/` endpoints are unauthenticated and a
+  few do real work (recon enqueue, scikit-image metrics), so the proxy applies a
+  `limit_req`/`limit_conn` cap and the recon router rejects new jobs once the
+  worker backlog hits `MAX_PENDING_JOBS`. This is the same co-tenant-protection
+  goal as the `mem_limit`s, enforced for request load instead of memory.
 - **Orthanc is never directly public.** Only `/dicom-web/` (reads) is proxied;
   the REST API and Explorer UI are not. The admin port is published on
   `127.0.0.1:8042` → admin/ingest only via SSH tunnel.
