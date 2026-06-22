@@ -2,8 +2,8 @@
 
 A **demo-only** medical-imaging stack: upload/curate DICOM, view it in a browser,
 and run small imaging experiments (metadata, de-identification checks, image-quality
-metrics, CT reconstruction). Designed to slot behind the existing **Nginx Proxy
-Manager** on the VPS.
+metrics, CT reconstruction, phase-contrast CSF/blood-flow quantification). Designed
+to slot behind the existing **Nginx Proxy Manager** on the VPS.
 
 > ⚠️ **Public datasets only. No clinical data — ever.** The public instance is
 > **read-only**: visitors can view and run tools, but cannot upload.
@@ -16,8 +16,8 @@ Manager** on the VPS.
 | `ohif`    | OHIF v3 web viewer                                               |
 | `orthanc` | DICOM server + DICOMweb (Orthanc, Postgres index)               |
 | `postgres`| Orthanc index                                                   |
-| `api`     | FastAPI: metadata, de-id checks, quality metrics, recon         |
-| `worker`  | RQ worker for CPU-bound jobs (recon, volume metrics)            |
+| `api`     | FastAPI: metadata, de-id checks, quality metrics, recon, flow    |
+| `worker`  | RQ worker for CPU-bound jobs (recon, PC-MRI flow quant)         |
 | `redis`   | Job queue                                                       |
 
 Heavy ML (torch/MONAI) is **not** in this stack — see [`offline/`](offline/).
@@ -44,6 +44,24 @@ Load the curated public demo set (TCIA, CC BY 3.0 — full scrollable CT/MR seri
 ```
 
 Datasets and attribution: [`docs/DATASETS.md`](docs/DATASETS.md).
+
+## Phase-contrast CSF/blood-flow quantification
+
+A validated PC-MRI flow pipeline (aqueductal CSF **stroke volume**, flow waveform,
+peak velocity) with a digital ground-truth phantom so accuracy is measurable —
+see [`docs/FLOWQUANT.md`](docs/FLOWQUANT.md).
+
+```bash
+curl -X POST "http://localhost:8088/api/flow/demo?venc_cm_s=8&snr=30&stroke_volume_uL=40"
+curl -X POST "http://localhost:8088/api/flow/validate?n_seeds=10"   # error vs SNR/VENC
+docker compose exec -T api python - < scripts/seed_pc_phantom.py    # render in OHIF
+```
+
+## Tests
+
+```bash
+cd api && pip install -r requirements-dev.txt && pytest tests -q   # also run in CI
+```
 
 ## Deploy behind Nginx Proxy Manager
 
