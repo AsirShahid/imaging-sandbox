@@ -81,7 +81,7 @@ def test_snr_sweep_error_decreases_with_more_signal():
 
 
 def test_enqueue_capped_rejects_full_queue(monkeypatch):
-    """Public backlog guard returns HTTP 429 when the queue is saturated."""
+    """Public backlog guard returns HTTP 503 when the queue is saturated."""
     from app import queue as q
 
     class _FullQueue:
@@ -91,4 +91,10 @@ def test_enqueue_capped_rejects_full_queue(monkeypatch):
     monkeypatch.setattr(q, "get_queue", lambda: _FullQueue())
     with pytest.raises(HTTPException) as exc:
         q.enqueue_capped("app.tasks.reconstruct_phantom", 180, "ramp", 256)
-    assert exc.value.status_code == 429
+    assert exc.value.status_code == 503
+
+
+def test_make_pc_phantom_rejects_single_frame():
+    """n_frames=1 would cause division by zero in waveform scaling."""
+    with pytest.raises(ValueError, match="n_frames must be >= 2"):
+        make_pc_phantom(n_frames=1)

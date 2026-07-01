@@ -18,7 +18,7 @@
 set -euo pipefail
 
 ORTHANC="${ORTHANC:-http://localhost:8042}"
-LABEL="${ADNI_LABEL:-private}"
+LABEL="private"  # hardcoded — ADNI must always be private (DUA forbids redistribution)
 DIR="${1:?usage: load_adni.sh <dir-with-ADNI-dicom>}"
 
 # Private data must never be pushed through the public edge — refuse anything

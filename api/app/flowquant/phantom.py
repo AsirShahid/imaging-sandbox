@@ -45,6 +45,8 @@ def make_pc_phantom(
     Returns magnitude/phase stacks plus the ground-truth mask, waveform, and
     metrics, and the acquisition parameters needed to quantify it.
     """
+    if n_frames < 2:
+        raise ValueError("n_frames must be >= 2 for a meaningful waveform")
     rng = np.random.default_rng(seed)
     dt = 60.0 / heart_rate_bpm / n_frames
     pixel = fov_mm / matrix

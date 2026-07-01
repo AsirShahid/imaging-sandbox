@@ -16,9 +16,18 @@ from .config import settings
 
 MAX_PENDING_JOBS = 8
 
+_redis: Redis | None = None
+
+
+def _get_redis() -> Redis:
+    global _redis
+    if _redis is None:
+        _redis = Redis.from_url(settings.redis_url)
+    return _redis
+
 
 def get_queue() -> Queue:
-    return Queue("default", connection=Redis.from_url(settings.redis_url))
+    return Queue("default", connection=_get_redis())
 
 
 def enqueue_capped(
@@ -27,10 +36,14 @@ def enqueue_capped(
     job_timeout: int = 300,
     result_ttl: int = 3600,
 ) -> Job:
-    """Enqueue a worker job, rejecting with HTTP 429 when the backlog is full."""
+    """Enqueue a worker job, rejecting with HTTP 503 when the backlog is full."""
     queue = get_queue()
     if len(queue) >= MAX_PENDING_JOBS:
-        raise HTTPException(429, "Job queue is busy; try again shortly")
+        raise HTTPException(
+            503,
+            "Job queue is busy; try again shortly",
+            headers={"Retry-After": "30"},
+        )
     return queue.enqueue(
         func_path, *args, job_timeout=job_timeout, result_ttl=result_ttl
     )
