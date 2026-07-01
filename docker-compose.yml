@@ -75,7 +75,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--save", "", "--maxmemory", "192mb", "--maxmemory-policy", "allkeys-lru"]
+    command: ["redis-server", "--save", "", "--maxmemory", "192mb", "--maxmemory-policy", "noeviction"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

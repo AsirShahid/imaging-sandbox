@@ -20,6 +20,9 @@ SERIES=(
   "1.3.6.1.4.1.14519.5.2.1.5168.1900.267475167888884755506702762438|Soft-tissue-Sarcoma  MR T2  (~40 slices)"
 )
 
+cleanup() { [ -n "${tmp:-}" ] && rm -rf "$tmp"; }
+trap cleanup EXIT
+
 for entry in "${SERIES[@]}"; do
   uid="${entry%%|*}"; desc="${entry#*|}"
   echo ">> ${desc}"

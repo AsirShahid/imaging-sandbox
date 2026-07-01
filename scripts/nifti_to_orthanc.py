@@ -21,6 +21,7 @@ Examples:
 import argparse
 import glob
 import os
+import re
 import sys
 from io import BytesIO
 
@@ -59,7 +60,8 @@ def nifti_to_dicom_slices(nifti_path, patient_name, patient_id, study_desc="Open
     study_uid = generate_uid()
     series_uid = generate_uid()
 
-    # Normalize to uint16
+    # Normalize to uint16, clamping negatives (noise) to zero.
+    data = np.clip(data, 0.0, None)
     dmax = data.max()
     if dmax > 0:
         slope = dmax / 65535.0
@@ -144,12 +146,15 @@ def upload_to_orthanc(slice_files, orthanc_url, label=None):
                 print(f"  WARN: slice {i} HTTP {r.status_code}")
                 continue
             resp = r.json()
-            study_ids.add(resp.get("ParentStudy", ""))
+            sid = resp.get("ParentStudy", "")
+            if sid:
+                study_ids.add(sid)
 
-    if label:
-        with httpx.Client(timeout=30) as client:
+        if label:
             for sid in study_ids:
-                client.put(f"{orthanc_url}/studies/{sid}/labels/{label}")
+                r = client.put(f"{orthanc_url}/studies/{sid}/labels/{label}")
+                if r.status_code not in (200, 201):
+                    print(f"  WARN: label PUT for study {sid} HTTP {r.status_code}")
 
     return {"studies": list(study_ids), "instances": len(slice_files)}
 
@@ -162,6 +167,14 @@ def main():
     parser.add_argument("--label", default=None, help="Orthanc label (public/private)")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+
+    if args.label == "private" and not re.match(
+        r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$", args.orthanc
+    ):
+        sys.exit(
+            "REFUSING: --label private requires a loopback --orthanc URL "
+            f"(got '{args.orthanc}'). Private data is admin-tunnel only."
+        )
 
     bids_dir = os.path.abspath(args.bids_dir)
     participants = load_participants(bids_dir)

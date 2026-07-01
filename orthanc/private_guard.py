@@ -23,6 +23,7 @@ ingest (scripts/load_adni.sh does this automatically) and it stays off the
 public edge. See docs/ARCHITECTURE.md and docs/DATASETS.md.
 """
 
+import collections
 import json
 import re
 import time
@@ -40,16 +41,17 @@ PUBLIC_HEADER = "x-public-access"  # set by the proxy on the public DICOMweb pat
 # resolves to "not private" and is allowed.
 _STUDY_SCOPED = re.compile(r"^/dicom-web/studies/([^/]+)(?:/.*)?$")
 
-# Tiny TTL cache so a burst of frame requests for one study doesn't hammer the
-# index. Labels change rarely; 30s staleness is fine for a sandbox.
+# Bounded LRU cache so memory stays bounded in a long-running Orthanc process.
 _CACHE_TTL = 30.0
-_label_cache = {}  # study_uid -> (is_private, expires_at)
+_CACHE_MAX = 1024
+_label_cache = collections.OrderedDict()  # study_uid -> (is_private, expires_at)
 
 
 def _study_uid_is_private(study_uid):
     now = time.time()
     cached = _label_cache.get(study_uid)
     if cached and cached[1] > now:
+        _label_cache.move_to_end(study_uid)
         return cached[0]
 
     is_private = False
@@ -64,14 +66,15 @@ def _study_uid_is_private(study_uid):
             break
 
     _label_cache[study_uid] = (is_private, now + _CACHE_TTL)
+    _label_cache.move_to_end(study_uid)
+    while len(_label_cache) > _CACHE_MAX:
+        _label_cache.popitem(last=False)
     return is_private
 
 
 def _is_public_request(request):
-    for key, value in (request.get("headers") or {}).items():
-        if key.lower() == PUBLIC_HEADER:
-            return value == "1"
-    return False
+    headers = request.get("headers") or {}
+    return headers.get(PUBLIC_HEADER) == "1" or headers.get("X-Public-Access") == "1"
 
 
 def _filter_incoming(uri, **request):
@@ -88,18 +91,31 @@ def _filter_incoming(uri, **request):
 def _public_studies(output, uri, **request):
     """Filtered QIDO-RS study list: native search minus `private` studies.
 
-    We delegate to Orthanc's own DICOMweb QIDO (so query filters, includefield,
-    paging and the DICOM+JSON shape stay exactly OHIF-compatible) and only drop
-    studies carrying the `private` label.
+    We strip limit/offset before delegating to Orthanc's native QIDO so that
+    pagination is applied *after* filtering (otherwise removing private studies
+    from a pre-paginated page returns fewer results than requested and breaks
+    client-side paging).
     """
-    args = request.get("get") or {}
-    query = urllib.parse.urlencode(args)
+    args = dict(request.get("get") or {})
+    client_limit = args.pop("limit", None)
+    client_offset = args.pop("offset", None)
+    query = urllib.parse.urlencode(args, doseq=True)
     native_uri = "/dicom-web/studies" + (("?" + query) if query else "")
 
-    # RestApiGetAfterPlugins (not RestApiGet) so this reaches the DICOMweb
-    # plugin's QIDO route rather than only Orthanc's core REST API.
-    studies = json.loads(orthanc.RestApiGetAfterPlugins(native_uri))
+    try:
+        studies = json.loads(orthanc.RestApiGetAfterPlugins(native_uri))
+    except Exception:
+        output.AnswerBuffer(json.dumps([]), "application/dicom+json")
+        return
     visible = [s for s in studies if not _study_json_is_private(s)]
+
+    # Apply client pagination after filtering.
+    offset = int(client_offset) if client_offset is not None else 0
+    if offset > 0:
+        visible = visible[offset:]
+    if client_limit is not None:
+        visible = visible[:int(client_limit)]
+
     output.AnswerBuffer(json.dumps(visible), "application/dicom+json")
 
 
