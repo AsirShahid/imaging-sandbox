@@ -43,6 +43,22 @@ Load the curated public demo set (TCIA, CC BY 3.0 — full scrollable CT/MR seri
 ./scripts/load_sample_data.sh /path/to/dicom_dir
 ```
 
+**OpenNeuro / BIDS NIfTI data (e.g. ds000030).** The sandbox ships with a NIfTI-to-DICOM
+bridge that converts BIDS T1w images into scrollable DICOM series and pushes them into
+Orthanc — making them viewable in OHIF and queryable through the same DICOMweb pipeline.
+
+```bash
+# Convert and upload a BIDS dataset to Orthanc
+./scripts/nifti_to_orthanc.py /path/to/bids_dir --limit 5 --label public
+
+# Generate QC images from T1w NIfTI files
+./scripts/qc_t1w.py /path/to/sub-XXX_T1w.nii.gz [output.png]
+./scripts/qc_t1w.py --batch /path/to/bids_dir /output/dir 10
+```
+
+The public instance currently serves **265 T1w subjects** from OpenNeuro ds000030
+(UCLA CNP, CC0) alongside the TCIA demo set — all browsable in OHIF.
+
 **Local/admin-only data (e.g. ADNI).** Non-redistributable data can live on the
 box for your own experiments without ever reaching the public edge:
 `./scripts/load_adni.sh /path/to/ADNI_export_dir` ingests over the admin tunnel
