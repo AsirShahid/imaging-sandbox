@@ -17,6 +17,23 @@ A small multiframe MR and an ultrasound from pydicom test data are also seeded
 | Soft-tissue-Sarcoma | MR · T2 | 1 series (~40 slices) | CC BY 3.0 |
 | pydicom test data | MR (multiframe), US | 2 instances | redistributable test fixtures |
 
+## OpenNeuro ds000030 — UCLA CNP (public)
+
+[ds000030](https://openneuro.org/datasets/ds000030) (UCLA Consortium for
+Neuropsychiatric Phenomics, **CC0**) provides 272 T1w MPRAGE structural MRIs
+at 1mm isotropic. It is ingested into Orthanc with the NIfTI→DICOM bridge
+([`scripts/nifti_to_orthanc.py`](../scripts/nifti_to_orthanc.py)) rather than
+DICOM→Orthanc directly. Because the dataset is CC0, all studies are labelled
+`public` and served on the DICOMweb edge.
+
+| Collection | Modality | Subjects loaded | License | Citation |
+|---|---|---|---|---|
+| ds000030 | T1w MPRAGE | 265 (of 272) | CC0 | Gorgolewski et al., 2016. Scientific Data. DOI: 10.1038/sdata.2016.110 |
+
+Each subject's patient ID follows the pattern `ds000030-{sub}` (e.g.
+`ds000030-10159`); the participant's diagnosis, age, and sex are embedded in
+the DICOM metadata.
+
 ## Attribution & citations
 
 Data hosting — **TCIA**:
